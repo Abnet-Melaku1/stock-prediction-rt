@@ -1,194 +1,64 @@
-import { useState } from "react";
-import { CalendarIcon, TrendingUp, X, Plus } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { MultiSelect } from "@/components/ui/multi-select";
-import type { Stock, DateRange } from "@/types/stock-analysis";
+import { AVAILABLE_STOCKS } from "@/constants/index";
+import { useStockAnalysis } from "@/hooks/use-stock-analysis";
+import { isValidDateRange } from "@/lib/stock-utils";
 import { cn } from "@/lib/utils";
+import { stockAnalysisService } from "@/services/stock-analysis-service";
 import { format } from "date-fns";
-import { Input } from "@/components/ui/input";
+import { CalendarIcon, Plus, TrendingUp, X } from "lucide-react";
+import { useState } from "react";
 
-interface StockInputSectionProps {
-  selectedStocks: Stock[];
-  dateRange: DateRange;
-  onStocksChange: (stocks: Stock[]) => void;
-  onDateRangeChange: (range: DateRange) => void;
-  onGenerateReport?: () => void;
-  isLoading?: boolean;
-}
-
-const AVAILABLE_STOCKS: Stock[] = [
-  {
-    symbol: "AMZN",
-    name: "Amazon",
-    price: 145.32,
-    change: 2.45,
-    changePercent: 1.71,
-  },
-  {
-    symbol: "META",
-    name: "Meta Platforms",
-    price: 298.75,
-    change: -1.23,
-    changePercent: -0.41,
-  },
-  {
-    symbol: "TSLA",
-    name: "Tesla",
-    price: 248.5,
-    change: 5.67,
-    changePercent: 2.33,
-  },
-  {
-    symbol: "AAPL",
-    name: "Apple",
-    price: 189.25,
-    change: 1.89,
-    changePercent: 1.01,
-  },
-  {
-    symbol: "GOOGL",
-    name: "Alphabet",
-    price: 142.18,
-    change: -0.95,
-    changePercent: -0.66,
-  },
-  {
-    symbol: "MSFT",
-    name: "Microsoft",
-    price: 378.85,
-    change: 3.21,
-    changePercent: 0.85,
-  },
-];
+export type StockInputSectionProps = ReturnType<typeof useStockAnalysis>;
 
 export function StockInputSection({
   selectedStocks,
   dateRange,
-  onStocksChange,
-  onDateRangeChange,
 
+  handleStockSelect,
+  handleDateSelect,
+  manualStock,
+  setManualStock,
+  addManualStock,
+  removeStock,
   isLoading,
+  setIsLoading,
+  isAddingStock,
 }: StockInputSectionProps) {
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [manualStock, setManualStock] = useState("");
-  const [isAddingStock, setIsAddingStock] = useState(false);
-
   const stockOptions = AVAILABLE_STOCKS.map((stock) => ({
     value: stock.symbol,
     label: `${stock.symbol} - ${stock.name}`,
     stock,
   }));
 
-  const handleStockSelect = (selectedValues: string[]) => {
-    const stocks = selectedValues.map(
-      (symbol) => AVAILABLE_STOCKS.find((stock) => stock.symbol === symbol)!
-    );
-    onStocksChange(stocks);
-  };
+  const generateStockData = async () => {
+    if (
+      !isValidDateRange(dateRange.from, dateRange.to) ||
+      selectedStocks.length === 0
+    )
+      return;
 
-  const handleDateSelect = (date: Date | undefined, type: "from" | "to") => {
-    if (!date) return;
-
-    onDateRangeChange({
-      ...dateRange,
-      [type]: date,
-    });
-  };
-
-  const addManualStock = async () => {
-    if (!manualStock.trim()) return;
-
-    const symbol = manualStock.toUpperCase().trim();
-
-    // Check if stock already exists
-    if (selectedStocks.some((stock) => stock.symbol === symbol)) {
-      setManualStock("");
-      return; // Stock already selected
-    }
-
-    // Basic validation
-    if (!/^[A-Z]{1,5}$/.test(symbol)) {
-      setManualStock("");
-      return; // Invalid symbol format
-    }
-
-    setIsAddingStock(true);
-
-    // Simulate API call to get stock data
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setIsLoading(true);
 
-      const newStock: Stock = {
-        symbol,
-        name: getStockName(symbol),
-        price: Math.random() * 200 + 50, // Mock price
-        change: (Math.random() - 0.5) * 10,
-        changePercent: (Math.random() - 0.5) * 5,
-      };
+      const tickers = selectedStocks.map((s) => s.symbol);
+      const data = await stockAnalysisService.getStockData(tickers, dateRange);
 
-      onStocksChange([...selectedStocks, newStock]);
-      setManualStock("");
+      console.log("Fetched stock data:", data);
     } catch (error) {
-      console.error("Failed to add stock:", error);
+      console.error("Error fetching stock data:", error);
     } finally {
-      setIsAddingStock(false);
+      setIsLoading(false);
     }
-  };
-
-  const getStockName = (symbol: string): string => {
-    const stockNames: Record<string, string> = {
-      AAPL: "Apple Inc.",
-      GOOGL: "Alphabet Inc.",
-      MSFT: "Microsoft Corporation",
-      AMZN: "Amazon.com Inc.",
-      TSLA: "Tesla Inc.",
-      META: "Meta Platforms Inc.",
-      NVDA: "NVIDIA Corporation",
-      CRM: "Salesforce Inc.",
-      NFLX: "Netflix Inc.",
-      ADBE: "Adobe Inc.",
-      PYPL: "PayPal Holdings Inc.",
-      INTC: "Intel Corporation",
-      AMD: "Advanced Micro Devices Inc.",
-      ORCL: "Oracle Corporation",
-      CSCO: "Cisco Systems Inc.",
-      IBM: "International Business Machines Corp.",
-      UBER: "Uber Technologies Inc.",
-      LYFT: "Lyft Inc.",
-      SNAP: "Snap Inc.",
-      ZOOM: "Zoom Video Communications Inc.",
-      SHOP: "Shopify Inc.",
-      SQ: "Block Inc.",
-      ROKU: "Roku Inc.",
-      PINS: "Pinterest Inc.",
-      DOCU: "DocuSign Inc.",
-      ZM: "Zoom Video Communications Inc.",
-      PLTR: "Palantir Technologies Inc.",
-      SNOW: "Snowflake Inc.",
-    };
-
-    return stockNames[symbol] || `${symbol} Inc.`;
-  };
-
-  const removeStock = (symbolToRemove: string) => {
-    onStocksChange(
-      selectedStocks.filter((stock) => stock.symbol !== symbolToRemove)
-    );
-  };
-
-  const isValidDateRange = () => {
-    const diffTime = Math.abs(
-      dateRange.to.getTime() - dateRange.from.getTime()
-    );
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays <= 3;
   };
 
   return (
@@ -228,7 +98,7 @@ export function StockInputSection({
               onClick={addManualStock}
               disabled={!manualStock.trim() || isAddingStock}
               variant="outline"
-              className="shrink-0 bg-transparent"
+              className="shrink-0 bg-transparent cursor-pointer disabled:cursor-alias"
             >
               {isAddingStock ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
@@ -253,9 +123,6 @@ export function StockInputSection({
                     <div className="flex flex-col">
                       <span className="font-medium text-sm">
                         {stock.symbol}
-                      </span>
-                      <span className="text-xs opacity-75">
-                        ${stock.price.toFixed(2)}
                       </span>
                     </div>
                     <button
@@ -340,7 +207,7 @@ export function StockInputSection({
           </div>
         </div>
 
-        {!isValidDateRange() && (
+        {!isValidDateRange(dateRange.from, dateRange.to) && (
           <p className="text-sm text-red-600 dark:text-red-400">
             Date range cannot exceed 3 days
           </p>
@@ -349,10 +216,13 @@ export function StockInputSection({
         {/* Generate Report Button */}
         <Button
           disabled={
-            selectedStocks.length === 0 || !isValidDateRange() || isLoading
+            selectedStocks.length === 0 ||
+            !isValidDateRange(dateRange.from, dateRange.to) ||
+            isLoading
           }
           className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-3 rounded-xl"
           size="lg"
+          onClick={generateStockData}
         >
           {isLoading ? (
             <>

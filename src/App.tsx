@@ -9,13 +9,7 @@ import type { InvestorPersona } from "./types/stock-analysis";
 const App = () => {
   const [activePersona, setActivePersona] =
     useState<InvestorPersona>("beginner");
-  const {
-    selectedStocks,
-    dateRange,
-
-    setSelectedStocks,
-    setDateRange,
-  } = useStockAnalysis();
+  const stockAnalysis = useStockAnalysis();
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 transition-colors duration-300">
       <Header />
@@ -85,12 +79,7 @@ const App = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <StockInputSection
-                selectedStocks={selectedStocks}
-                dateRange={dateRange}
-                onStocksChange={setSelectedStocks}
-                onDateRangeChange={setDateRange}
-              />
+              <StockInputSection {...stockAnalysis} />
             </motion.div>
 
             {/* Results Section */}
